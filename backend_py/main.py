@@ -20,7 +20,10 @@ except Exception as import_err:  # pragma: no cover - defensive for serverless e
 
 app = Flask(__name__)
 API_KEY = os.getenv("API_KEY", "")
-allowed_origins_raw = os.getenv("ALLOWED_ORIGINS", "http://localhost:3000")
+allowed_origins_raw = os.getenv(
+    "ALLOWED_ORIGINS",
+    "http://localhost:3000,http://127.0.0.1:3000,https://peta-potensi-gempa-ri.vercel.app",
+)
 allowed_origins = [
     origin.strip() for origin in allowed_origins_raw.split(",") if origin.strip()
 ]
@@ -54,6 +57,10 @@ def first_existing(*paths: Path) -> Optional[Path]:
 def require_api_key(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
+        # Biarkan preflight CORS lewat tanpa API key agar browser bisa lanjut ke request utama.
+        if request.method == "OPTIONS":
+            return ("", 204)
+
         if not API_KEY:
             return (
                 jsonify(
