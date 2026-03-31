@@ -24,9 +24,19 @@ allowed_origins_raw = os.getenv(
     "ALLOWED_ORIGINS",
     "http://localhost:3000,http://127.0.0.1:3000,https://peta-potensi-gempa-ri.vercel.app",
 )
+
+DEFAULT_ALLOWED_ORIGINS = [
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+    "https://peta-potensi-gempa-ri.vercel.app",
+]
+
 allowed_origins = [
     origin.strip() for origin in allowed_origins_raw.split(",") if origin.strip()
 ]
+for origin in DEFAULT_ALLOWED_ORIGINS:
+    if origin not in allowed_origins:
+        allowed_origins.append(origin)
 
 CORS(
     app,
@@ -45,6 +55,10 @@ HAZARD_DATA_DIR = DATA_DIR / "hazard"
 MODEL_PATH_1_JOBLIB = HAZARD_MODEL_DIR / "hazard_model.joblib"
 LABEL_ENCODER_MODEL_1 = HAZARD_MODEL_DIR / "label_encoder.pkl"
 M5_BUNDLE_PATH = TIMESERIES_MODEL_DIR / "m5_regional_nearest_bundle.joblib"
+
+MODEL_PATH_1_JOBLIB_ROOT = BACKEND_DIR / "hazard_model.joblib"
+LABEL_ENCODER_MODEL_1_ROOT = BACKEND_DIR / "label_encoder.pkl"
+GRID_DF_PATH_ROOT = BACKEND_DIR / "grid_df.csv"
 
 
 def first_existing(*paths: Path) -> Optional[Path]:
@@ -90,8 +104,8 @@ def require_api_key(f):
 
 model_1 = None
 label_encoder = None
-hazard_joblib_path = first_existing(MODEL_PATH_1_JOBLIB)
-label_encoder_path = first_existing(LABEL_ENCODER_MODEL_1)
+hazard_joblib_path = first_existing(MODEL_PATH_1_JOBLIB, MODEL_PATH_1_JOBLIB_ROOT)
+label_encoder_path = first_existing(LABEL_ENCODER_MODEL_1, LABEL_ENCODER_MODEL_1_ROOT)
 
 if hazard_joblib_path is not None and label_encoder_path is not None:
     try:
@@ -116,7 +130,7 @@ else:
     print(f"File model M>=5 tidak ditemukan: {M5_BUNDLE_PATH}")
 
 
-grid_df_path = first_existing(HAZARD_DATA_DIR / "grid_df.csv")
+grid_df_path = first_existing(HAZARD_DATA_DIR / "grid_df.csv", GRID_DF_PATH_ROOT)
 if grid_df_path is None:
     grid_df = None
     print("File grid_df.csv tidak ditemukan di backend/data/hazard")
