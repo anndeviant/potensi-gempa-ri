@@ -1,0 +1,63 @@
+{
+  "feature_columns": [
+    "max_mag",
+    "avg_mag",
+    "avg_depth",
+    "gempa_in_radius_50",
+    "density"
+  ],
+  "data_path": "D:\\Projects\\bencana_dicoding_app\\backend_py\\data\\hazard\\grid_df.csv",
+  "train_size": 18753,
+  "test_size": 4689,
+  "accuracy": 0.9959479633184047,
+  "classes": [
+    "high",
+    "low",
+    "medium",
+    "very_high"
+  ],
+  "hazard_score_quantiles": {
+    "q1": 22.105423337286204,
+    "q2": 60.44341391838908,
+    "q3": 125.3835430830473
+  },
+  "classification_report": {
+    "high": {
+      "precision": 0.9965811965811966,
+      "recall": 0.9948805460750854,
+      "f1-score": 0.9957301451750641,
+      "support": 1172.0
+    },
+    "low": {
+      "precision": 0.9957374254049446,
+      "recall": 0.9965870307167235,
+      "f1-score": 0.9961620469083156,
+      "support": 1172.0
+    },
+    "medium": {
+      "precision": 0.9948717948717949,
+      "recall": 0.9931740614334471,
+      "f1-score": 0.9940222032450897,
+      "support": 1172.0
+    },
+    "very_high": {
+      "precision": 0.9965986394557823,
+      "recall": 0.9991474850809889,
+      "f1-score": 0.9978714346530438,
+      "support": 1173.0
+    },
+    "accuracy": 0.9959479633184047,
+    "macro avg": {
+      "precision": 0.9959472640784296,
+      "recall": 0.9959472808265613,
+      "f1-score": 0.9959464574953782,
+      "support": 4689.0
+    },
+    "weighted avg": {
+      "precision": 0.995947402994057,
+      "recall": 0.9959479633184047,
+      "f1-score": 0.9959468680258021,
+      "support": 4689.0
+    }
+  }
+}

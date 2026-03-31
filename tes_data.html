@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <title>DEM Elevation Checker</title>
+
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: auto;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .map-container {
+            display: flex;
+            flex-direction: row;
+            gap: 20px;
+        }
+
+        #map {
+            height: 80vh;
+            width: 70%;
+            padding: 20px;
+            /* margin: 5rem; */
+        }
+
+        #info {
+            padding: 15px;
+            background: #f4f4f4;
+            font-size: 16px;
+        }
+    </style>
+
+</head>
+
+<body>
+
+    <div class="container">
+        <h1>DEM Elevation Checker</h1>
+        <p>Klik pada peta untuk melihat elevasi di lokasi tersebut.</p>
+
+        <div class="map-container">
+            <div id="map"></div>
+
+            <div id="info">
+                Klik pada peta untuk melihat elevasi.<br>
+                Latitude: - <br>
+                Longitude: - <br>
+                Elevation: - <br>
+                Slope: - <br>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+    <script>
+
+        // inisialisasi map
+        var map = L.map('map').setView([-7.7956, 110.3695], 10);
+
+        // layer OpenStreetMap
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap contributors'
+        }).addTo(map);
+        // apiKey = 'b7176b6909c5412280e49c48ef8d5d0a';
+
+        var marker;
+
+        // mencoba membuat fungsi mengambil jarak sungai dan pantai terdekat
+        // rumus haversine
+        function distance(lat1, lon1, lat2, lon2) {
+            var R = 6371;
+            var dLat = (lat2 - lat1) * Math.PI / 180;
+            var dLon = (lon2 - lon1) * Math.PI / 180;
+            var a =
+                Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+                Math.cos(lat1 * Math.PI / 180) *
+                Math.cos(lat2 * Math.PI / 180) *
+                Math.sin(dLon / 2) * Math.sin(dLon / 2);
+
+            var c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+            return R * c;
+        }
+
+        // cari fitur OSM
+        async function findFeature(lat, lon, type) {
+            var radius = 5000;
+            var query;
+
+            if (type == "river") {
+                query = `
+[out:json];
+(
+way["waterway"="river"](around:${radius},${lat},${lon});
+);
+out geom;
+`;
+            }
+
+            if (type == "coast") {
+                query = `
+[out:json];
+(
+way["natural"="coastline"](around:${radius},${lat},${lon});
+);
+out geom;
+`;
+            }
+
+            var url = "https://overpass-api.de/api/interpreter?data=" + encodeURIComponent(query);
+
+            var res = await fetch(url);
+            var data = await res.json();
+
+            var minDist = null;
+
+            data.elements.forEach(el => {
+                el.geometry.forEach(p => {
+                    var d = distance(lat, lon, p.lat, p.lon);
+
+                    if (minDist == null || d < minDist) {
+                        minDist = d;
+                    }
+                });
+            });
+            return minDist;
+        }
+        async function getElevation(lat, lon) {
+            var res = await fetch(
+                "https://api.open-elevation.com/api/v1/lookup?locations=" + lat + "," + lon
+            );
+            var data = await res.json();
+            return data.results[0].elevation;
+        }
+        async function calculateSlope(lat, lon) {
+            var offset = 0.0005; // sekitar 50m
+            // ambil elevasi 3 titik
+            var p1 = await getElevation(lat, lon);
+            var p2 = await getElevation(lat + offset, lon);
+            var p3 = await getElevation(lat, lon + offset);
+            // perubahan elevasi
+            var dz1 = p2 - p1;
+            var dz2 = p3 - p1;
+            // jarak kira-kira meter
+            var dist = 50;
+            var slopeX = Math.atan(dz1 / dist) * (180 / Math.PI);
+            var slopeY = Math.atan(dz2 / dist) * (180 / Math.PI);
+
+            // rata-rata slope
+            return Math.sqrt(slopeX * slopeX + slopeY * slopeY);
+        }
+
+        async function getLandUse(lat, lon) {
+            var radius = 100; // Radius kecil untuk akurasi titik
+            var query = `
+[out:json];
+(
+way["landuse"](around:${radius},${lat},${lon});
+relation["landuse"](around:${radius},${lat},${lon});
+way["leisure"](around:${radius},${lat},${lon});
+);
+out tags;
+            `;
+            var url = "https://maps.mail.ru/osm/tools/overpass/api/interpreter?data=" + encodeURIComponent(query);
+
+            try {
+                var res = await fetch(url);
+                var data = await res.json();
+                console.log("Data Land Use:", data);
+                if (data.elements.length > 0) {
+                    // Mengambil tag landuse atau leisure (seperti taman/park)
+                    return data.elements[0].tags.landuse || data.elements[0].tags.leisure || "Tidak spesifik";
+                }
+                return "Data tidak ditemukan";
+            } catch (e) {
+                return "Error mengambil data";
+            }
+        }
+
+        // Fungsi untuk estimasi kepadatan penduduk (Contoh menggunakan API Geonames atau Mockup Data)
+        // Catatan: Kepadatan penduduk biasanya per wilayah administratif (Desa/Kecamatan)
+        async function getPopulation(lat, lon) {
+            // Sebagai alternatif gratis, kita gunakan Nominatim untuk tahu nama wilayahnya dulu
+            // Karena API kepadatan penduduk murni per titik koordinat sangat langka yang gratis
+            // var url = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}`;
+
+            try {
+                const response = await fetch(url, {
+                    headers: {
+                        'Accept': 'application/json',
+                        // 'User-Agent': 'MyElevationApp/1.0' // Penting agar tidak kena blokir CORS/403
+                    }
+                });
+
+                if (!response.ok) throw new Error('Network response was not ok');
+
+                const data = await response.json();
+                // Logika sederhana: jika area 'urban' atau 'city' biasanya padat
+                // Di aplikasi nyata, Anda butuh GeoJSON data kepadatan per wilayah
+                console.log("Data geonames :", data);
+                var address = data.address;
+                var display = address.village || address.suburb || address.city || "Area Luar";
+
+                // Simulasi nilai (karena API populasi per titik sangat terbatas)
+                // Idealnya anda memanggil database lokal atau GeoServer sendiri
+                return "Estimasi populasi di " + display;
+            } catch (e) {
+                return "Data tidak tersedia";
+            }
+        }
+
+        // event ketika map diklik
+        map.on('click', async function (e) {
+
+            var lat = e.latlng.lat;
+            var lon = e.latlng.lng;
+
+            // hapus marker lama
+            if (marker) {
+                map.removeLayer(marker);
+            }
+            // tambah marker baru
+            marker = L.marker([lat, lon]).addTo(map);
+
+            document.getElementById("info").innerHTML = "Sedang mengambil data...";
+
+            // panggil API elevasi
+            const elevation = await getElevation(lat, lon);
+            const riverDist = await findFeature(lat, lon, "river");
+            const coastDist = await findFeature(lat, lon, "coast");
+            const slope = await calculateSlope(lat, lon);
+            // const landUse = await getLandUse(lat, lon);
+            const population = await getPopulation(lat, lon);
+
+            console.log("nilai elevasi: " + elevation);
+            console.log("nilai slope: " + slope);
+
+            document.getElementById("info").innerHTML =
+                "<b>Informasi Lokasi:</b><br>" +
+                "Lat: " + lat.toFixed(6) + "<br>" +
+                "Lon: " + lon.toFixed(6) + "<br><hr>" +
+                "Elevation: " + elevation + " meter<br>" +
+                // "Slope: " + (slope ? slope.toFixed(2) + "°" : "n/a") + "<br>" +
+                // "Land Use: " + landUse + "<br>" +
+                "Wilayah: " + population + "<br><hr>" +
+                "River Dist: " + (riverDist ? riverDist.toFixed(2) + " km" : ">5km") + "<br>" +
+                "Coast Dist: " + (coastDist ? coastDist.toFixed(2) + " km" : ">5km")
+                ;
+        });
+
+
+
+    </script>
+
+</body>
+
+</html>

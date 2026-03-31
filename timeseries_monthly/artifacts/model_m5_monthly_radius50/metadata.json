@@ -1,0 +1,22 @@
+{
+  "mag_threshold": 5.0,
+  "radius_km": 50.0,
+  "grid_deg": 0.45045045045045046,
+  "test_horizon": 12,
+  "lags": [
+    1,
+    2,
+    3,
+    6,
+    12
+  ],
+  "roll_windows": [
+    3,
+    6,
+    12
+  ],
+  "last_observed_month": "2023-01-01",
+  "n_events_filtered": 5076,
+  "n_cells": 1121,
+  "n_regions": 50
+}
