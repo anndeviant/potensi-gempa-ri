@@ -108,6 +108,9 @@ def require_api_key(f):
 model_1 = None
 label_encoder = None
 hazard_class_labels = []
+hazard_quantiles = {}
+hazard_load_error = None
+grid_load_error = None
 hazard_joblib_path = first_existing(MODEL_PATH_1_JOBLIB, MODEL_PATH_1_JOBLIB_ROOT)
 label_encoder_path = first_existing(LABEL_ENCODER_MODEL_1, LABEL_ENCODER_MODEL_1_ROOT)
 hazard_metadata_path = first_existing(HAZARD_METADATA_PATH, HAZARD_METADATA_PATH_ROOT)
@@ -124,6 +127,17 @@ if hazard_metadata_path is not None:
         if isinstance(classes, list):
             hazard_class_labels = [str(c) for c in classes]
 
+        quantiles = hazard_metadata.get("hazard_score_quantiles", {})
+        if isinstance(quantiles, dict):
+            try:
+                hazard_quantiles = {
+                    "q1": float(quantiles["q1"]),
+                    "q2": float(quantiles["q2"]),
+                    "q3": float(quantiles["q3"]),
+                }
+            except Exception:
+                hazard_quantiles = {}
+
 if hazard_joblib_path is not None:
     try:
         model_1 = joblib.load(hazard_joblib_path)
@@ -133,8 +147,10 @@ if hazard_joblib_path is not None:
             print("label_encoder.pkl tidak ditemukan, menggunakan fallback label.")
         print("Model hazard (joblib) berhasil dimuat.")
     except Exception as e:
+        hazard_load_error = str(e)
         print(f"Gagal memuat model hazard (joblib): {e}")
 else:
+    hazard_load_error = "hazard_model.joblib tidak ditemukan"
     print("File model hazard tidak ditemukan")
 
 m5_bundle_path = first_existing(M5_BUNDLE_PATH)
@@ -153,9 +169,15 @@ else:
 grid_df_path = first_existing(HAZARD_DATA_DIR / "grid_df.csv", GRID_DF_PATH_ROOT)
 if grid_df_path is None:
     grid_df = None
+    grid_load_error = "grid_df.csv tidak ditemukan"
     print("File grid_df.csv tidak ditemukan di backend/data/hazard")
 else:
-    grid_df = pd.read_csv(grid_df_path)
+    try:
+        grid_df = pd.read_csv(grid_df_path)
+    except Exception as e:
+        grid_df = None
+        grid_load_error = str(e)
+        print(f"Gagal memuat grid_df.csv: {e}")
 
 
 def get_nearest_features(lat, lon, grid_df):
@@ -168,6 +190,30 @@ def get_nearest_features(lat, lon, grid_df):
 def predict_hazard_class(features: pd.DataFrame):
     pred = model_1.predict(features)
     return pred[0]
+
+
+def predict_hazard_fallback(features: pd.DataFrame):
+    # Fallback ini meniru logika pelabelan saat training model hazard.
+    row = features.iloc[0]
+    score = (
+        float(row["max_mag"]) * 0.4
+        + float(row["density"]) * 0.3
+        + float(row["gempa_in_radius_50"]) * 0.3
+    )
+
+    q1 = hazard_quantiles.get("q1")
+    q2 = hazard_quantiles.get("q2")
+    q3 = hazard_quantiles.get("q3")
+    if q1 is None or q2 is None or q3 is None:
+        raise RuntimeError("Metadata quantile hazard belum tersedia")
+
+    if score <= q1:
+        return "low"
+    if score <= q2:
+        return "medium"
+    if score <= q3:
+        return "high"
+    return "very_high"
 
 
 def decode_hazard_label(pred_value) -> str:
@@ -189,12 +235,24 @@ def decode_hazard_label(pred_value) -> str:
 @require_api_key
 def predict():
     try:
-        if model_1 is None or grid_df is None:
+        hazard_ready = model_1 is not None
+        fallback_ready = bool(hazard_quantiles)
+
+        if grid_df is None or (not hazard_ready and not fallback_ready):
+            reasons = []
+            if grid_df is None:
+                reasons.append(f"grid_df: {grid_load_error or 'tidak siap'}")
+            if not hazard_ready and not fallback_ready:
+                reasons.append(
+                    f"hazard_model/fallback: {hazard_load_error or 'model tidak bisa dimuat dan metadata quantile tidak tersedia'}"
+                )
+
             return (
                 jsonify(
                     {
                         "status": "error",
-                        "message": "Model hazard belum siap. Periksa hazard_model.joblib dan grid_df.csv",
+                        "message": "Model hazard belum siap. Periksa hazard_model.joblib, training_metadata.json, dan grid_df.csv",
+                        "detail": reasons,
                     }
                 ),
                 500,
@@ -206,8 +264,13 @@ def predict():
             return jsonify({"error": "Parameter lat dan lng diperlukan"}), 400
 
         nearest_features = get_nearest_features(lat, lng, grid_df)
-        prediction = predict_hazard_class(nearest_features)
-        label = decode_hazard_label(prediction)
+        if hazard_ready:
+            prediction = predict_hazard_class(nearest_features)
+            label = decode_hazard_label(prediction)
+            source = "model"
+        else:
+            label = predict_hazard_fallback(nearest_features)
+            source = "fallback_metadata"
 
         return jsonify(
             {
@@ -216,6 +279,7 @@ def predict():
                     "hazard_level": label,
                     "lat": lat,
                     "lng": lng,
+                    "source": source,
                 },
             }
         )
