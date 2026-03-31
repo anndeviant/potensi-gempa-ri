@@ -3,6 +3,7 @@ from flask_cors import CORS
 import pandas as pd
 import joblib
 import os
+import json
 from datetime import datetime
 from pathlib import Path
 from functools import wraps
@@ -54,10 +55,12 @@ HAZARD_DATA_DIR = DATA_DIR / "hazard"
 
 MODEL_PATH_1_JOBLIB = HAZARD_MODEL_DIR / "hazard_model.joblib"
 LABEL_ENCODER_MODEL_1 = HAZARD_MODEL_DIR / "label_encoder.pkl"
+HAZARD_METADATA_PATH = HAZARD_MODEL_DIR / "training_metadata.json"
 M5_BUNDLE_PATH = TIMESERIES_MODEL_DIR / "m5_regional_nearest_bundle.joblib"
 
 MODEL_PATH_1_JOBLIB_ROOT = BACKEND_DIR / "hazard_model.joblib"
 LABEL_ENCODER_MODEL_1_ROOT = BACKEND_DIR / "label_encoder.pkl"
+HAZARD_METADATA_PATH_ROOT = BACKEND_DIR / "training_metadata.json"
 GRID_DF_PATH_ROOT = BACKEND_DIR / "grid_df.csv"
 
 
@@ -104,13 +107,30 @@ def require_api_key(f):
 
 model_1 = None
 label_encoder = None
+hazard_class_labels = []
 hazard_joblib_path = first_existing(MODEL_PATH_1_JOBLIB, MODEL_PATH_1_JOBLIB_ROOT)
 label_encoder_path = first_existing(LABEL_ENCODER_MODEL_1, LABEL_ENCODER_MODEL_1_ROOT)
+hazard_metadata_path = first_existing(HAZARD_METADATA_PATH, HAZARD_METADATA_PATH_ROOT)
 
-if hazard_joblib_path is not None and label_encoder_path is not None:
+if hazard_metadata_path is not None:
+    try:
+        with open(hazard_metadata_path, "r", encoding="utf-8") as f:
+            hazard_metadata = json.load(f)
+    except Exception:
+        hazard_metadata = None
+
+    if isinstance(hazard_metadata, dict):
+        classes = hazard_metadata.get("classes", [])
+        if isinstance(classes, list):
+            hazard_class_labels = [str(c) for c in classes]
+
+if hazard_joblib_path is not None:
     try:
         model_1 = joblib.load(hazard_joblib_path)
-        label_encoder = joblib.load(label_encoder_path)
+        if label_encoder_path is not None:
+            label_encoder = joblib.load(label_encoder_path)
+        else:
+            print("label_encoder.pkl tidak ditemukan, menggunakan fallback label.")
         print("Model hazard (joblib) berhasil dimuat.")
     except Exception as e:
         print(f"Gagal memuat model hazard (joblib): {e}")
@@ -145,21 +165,36 @@ def get_nearest_features(lat, lon, grid_df):
     return row[["max_mag", "avg_mag", "avg_depth", "gempa_in_radius_50", "density"]]
 
 
-def predict_hazard_class(features: pd.DataFrame) -> int:
+def predict_hazard_class(features: pd.DataFrame):
     pred = model_1.predict(features)
-    return int(pred[0])
+    return pred[0]
+
+
+def decode_hazard_label(pred_value) -> str:
+    if label_encoder is not None:
+        return str(label_encoder.inverse_transform([pred_value])[0])
+
+    if isinstance(pred_value, str):
+        return pred_value
+
+    if isinstance(pred_value, (int, float)):
+        idx = int(pred_value)
+        if 0 <= idx < len(hazard_class_labels):
+            return hazard_class_labels[idx]
+
+    return str(pred_value)
 
 
 @app.route("/predict", methods=["GET"])
 @require_api_key
 def predict():
     try:
-        if model_1 is None or label_encoder is None or grid_df is None:
+        if model_1 is None or grid_df is None:
             return (
                 jsonify(
                     {
                         "status": "error",
-                        "message": "Model hazard belum siap. Periksa hazard_model.joblib, label_encoder.pkl, dan grid_df.csv",
+                        "message": "Model hazard belum siap. Periksa hazard_model.joblib dan grid_df.csv",
                     }
                 ),
                 500,
@@ -171,8 +206,8 @@ def predict():
             return jsonify({"error": "Parameter lat dan lng diperlukan"}), 400
 
         nearest_features = get_nearest_features(lat, lng, grid_df)
-        prediction = [predict_hazard_class(nearest_features)]
-        label = label_encoder.inverse_transform(prediction)[0]
+        prediction = predict_hazard_class(nearest_features)
+        label = decode_hazard_label(prediction)
 
         return jsonify(
             {
