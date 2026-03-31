@@ -2,21 +2,21 @@ from flask import Flask, request, jsonify
 from flask_cors import CORS
 import pandas as pd
 import joblib
-import sys
 import os
 from datetime import datetime
 from pathlib import Path
 from functools import wraps
+from typing import Optional
 
-ROOT_DIR = Path(__file__).resolve().parents[1]
 BACKEND_DIR = Path(__file__).resolve().parent
-if str(ROOT_DIR) not in sys.path:
-    sys.path.append(str(ROOT_DIR))
 
-from timeseries_monthly.model_m5_regional_nearest import (  # noqa: E402
-    ARTIFACT_DIR as M5_ARTIFACT_DIR,
-    forecast_within_radius,
-)
+try:
+    from timeseries_infer import forecast_within_radius
+
+    TIMESERIES_IMPORT_ERROR = None
+except Exception as import_err:  # pragma: no cover - defensive for serverless env
+    forecast_within_radius = None
+    TIMESERIES_IMPORT_ERROR = str(import_err)
 
 app = Flask(__name__)
 API_KEY = os.getenv("API_KEY", "")
@@ -43,14 +43,8 @@ MODEL_PATH_1_JOBLIB = HAZARD_MODEL_DIR / "hazard_model.joblib"
 LABEL_ENCODER_MODEL_1 = HAZARD_MODEL_DIR / "label_encoder.pkl"
 M5_BUNDLE_PATH = TIMESERIES_MODEL_DIR / "m5_regional_nearest_bundle.joblib"
 
-LEGACY_LABEL_ENCODER_MODEL_1 = BACKEND_DIR / "label_encoder.pkl"
-LEGACY_GRID_DF_PATH = BACKEND_DIR / "grid_df.csv"
-LEGACY_M5_BUNDLE_PATH = (
-    M5_ARTIFACT_DIR / "saved_models" / "m5_regional_nearest_bundle.joblib"
-)
 
-
-def first_existing(*paths: Path) -> Path | None:
+def first_existing(*paths: Path) -> Optional[Path]:
     for p in paths:
         if p.exists():
             return p
@@ -90,10 +84,7 @@ def require_api_key(f):
 model_1 = None
 label_encoder = None
 hazard_joblib_path = first_existing(MODEL_PATH_1_JOBLIB)
-label_encoder_path = first_existing(
-    LABEL_ENCODER_MODEL_1,
-    LEGACY_LABEL_ENCODER_MODEL_1,
-)
+label_encoder_path = first_existing(LABEL_ENCODER_MODEL_1)
 
 if hazard_joblib_path is not None and label_encoder_path is not None:
     try:
@@ -105,21 +96,25 @@ if hazard_joblib_path is not None and label_encoder_path is not None:
 else:
     print("File model hazard tidak ditemukan")
 
-m5_bundle_path = first_existing(M5_BUNDLE_PATH, LEGACY_M5_BUNDLE_PATH)
+m5_bundle_path = first_existing(M5_BUNDLE_PATH)
 if m5_bundle_path is not None:
-    m5_bundle = joblib.load(m5_bundle_path)
-    print("Model regional M>=5 berhasil dimuat.")
+    try:
+        m5_bundle = joblib.load(m5_bundle_path)
+        print("Model regional M>=5 berhasil dimuat.")
+    except Exception as e:
+        m5_bundle = None
+        print(f"Gagal memuat model M>=5: {e}")
 else:
     m5_bundle = None
     print(f"File model M>=5 tidak ditemukan: {M5_BUNDLE_PATH}")
 
 
-grid_df_path = first_existing(HAZARD_DATA_DIR / "grid_df.csv", LEGACY_GRID_DF_PATH)
+grid_df_path = first_existing(HAZARD_DATA_DIR / "grid_df.csv")
 if grid_df_path is None:
-    raise FileNotFoundError(
-        "File grid_df.csv tidak ditemukan di backend/data/hazard maupun path lama"
-    )
-grid_df = pd.read_csv(grid_df_path)
+    grid_df = None
+    print("File grid_df.csv tidak ditemukan di backend/data/hazard")
+else:
+    grid_df = pd.read_csv(grid_df_path)
 
 
 def get_nearest_features(lat, lon, grid_df):
@@ -138,12 +133,12 @@ def predict_hazard_class(features: pd.DataFrame) -> int:
 @require_api_key
 def predict():
     try:
-        if model_1 is None or label_encoder is None:
+        if model_1 is None or label_encoder is None or grid_df is None:
             return (
                 jsonify(
                     {
                         "status": "error",
-                        "message": "Model hazard belum siap. Periksa file hazard_model.joblib dan label_encoder.pkl",
+                        "message": "Model hazard belum siap. Periksa hazard_model.joblib, label_encoder.pkl, dan grid_df.csv",
                     }
                 ),
                 500,
@@ -176,6 +171,18 @@ def predict():
 @require_api_key
 def predict_m5_radius():
     try:
+        if forecast_within_radius is None:
+            return (
+                jsonify(
+                    {
+                        "status": "error",
+                        "message": "Fitur M>=5 tidak tersedia di environment ini",
+                        "detail": TIMESERIES_IMPORT_ERROR,
+                    }
+                ),
+                500,
+            )
+
         if m5_bundle is None:
             return (
                 jsonify(
