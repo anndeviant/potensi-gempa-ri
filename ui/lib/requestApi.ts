@@ -25,7 +25,7 @@ export interface PredictionM5RadiusResponse {
 }
 
 const API_BASE_URL =
-    process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/$/, "") || "http://localhost:5000";
+    process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/$/, "") || "https://peta-potensi-gempa-ri-api-v1.vercel.app";
 const API_KEY = process.env.NEXT_PUBLIC_API_KEY;
 
 const buildHeaders = (): HeadersInit => {
