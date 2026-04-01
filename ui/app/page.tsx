@@ -392,8 +392,8 @@ export default function Home() {
             </h1>
           </div>
         </div>
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-center sm:gap-4">
-          <div className="flex w-full flex-col gap-1 sm:w-auto sm:flex-row sm:items-center sm:gap-2">
+        <div className="flex gap-3 flex-col items-center justify-center">
+          <div className="flex gap-2 justify-center items-center">
             <label className="text-sm text-gray-700" htmlFor="radius-km">
               Radius (50-200 km)
             </label>
@@ -410,20 +410,20 @@ export default function Home() {
                   setRadiusKm(Math.max(50, Math.min(200, nextValue)));
                 }
               }}
-              className="h-10 w-full rounded-md border border-gray-300 px-3 py-1 text-sm sm:w-24"
+              className="h-10 rounded-md border border-gray-300 px-3 py-1 text-sm sm:w-24"
             />
           </div>
-          <div className="grid w-full grid-cols-2 gap-3 sm:w-auto sm:flex sm:gap-4">
+          <div className="flex gap-3 flex-1 sm:gap-4">
             <button
-              className="isolate relative rounded-2xl font-semibold w-full"
+              className="isolate relative rounded-2xl font-semibold"
               onClick={mulaiAnalisis}
             >
-              <div className="bg-amber-400 z-10 rounded-[inherit] px-4 py-2.5 text-sm leading-tight sm:text-base">
+              <div className="bg-amber-400 rounded-[inherit] px-4 py-2.5 text-sm leading-tight sm:text-base">
                 Mulai Analisis Lokasi
               </div>
             </button>
             <button
-              className="w-full rounded-2xl border border-black px-4 py-2.5 text-sm sm:text-base"
+              className="rounded-2xl border border-black px-4 py-2.5 text-sm sm:text-base"
               onClick={resetLocation}
             >
               Reset Lokasi
