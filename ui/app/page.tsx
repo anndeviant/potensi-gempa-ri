@@ -237,17 +237,17 @@ export default function Home() {
           className="absolute z-1 w-full h-full object-cover "
         />
         <div className="after absolute z-2 w-full h-full bg-linear-to-tr from-[rgba(0,0,0,0.9)] to-[rgba(0,0,0,0.2)]"></div>
-        <div className="relative z-2 pt-14 lg:pt-32 px-4 pb-10 font-(Inter)">
+        <div className="relative z-2 pt-14 lg:pt-32 px-4 pb-10 font-(Inter) lg:h-full">
           <h2 className="text-4xl font-bold mb-2 text-shadow-lg pb-3">
             Selamat Datang di{" "}
             <span className="text-amber-300">Peta Potensi Gempa Indonesia</span>
           </h2>
-          <p className="text-base lg:text-2xl lg:px-60 xl:px-96 font-light text-shadow-lg pb-8 lg:pb-10">
+          <p className="text-base lg:text-2xl lg:px-60 xl:px-96 font-light text-shadow-lg pb-4 lg:pb-10">
             Pantau potensi bencana gempa di lingkungan sekitar kita dengan mudah
             dan cepat.
           </p>
 
-          <div className="flex lg:px-20 gap-10 lg:gap-14 flex-col lg:flex-row justify-center items-center lg:items-start pb-10">
+          <div className="flex lg:px-20 gap-5 lg:gap-14 flex-col lg:flex-row justify-center items-center lg:items-start pb-10">
             <div className="flex-1 max-w-120">
               <p className="text-center mb-4 text-3xl">⚠️</p>
               <h3 className="text-base lg:text-xl font-bold mb-2 text-shadow-lg text-center lg:text-center">
@@ -279,7 +279,7 @@ export default function Home() {
           {/* <div className="btn-double-effect bg-amber-200"></div> */}
           <button
             onClick={handleScrollToMain}
-            className="relative my-10 px-4 py-2 text-lg bg-black font-bold rounded-3xl hover:bg-linear-to-r from-[#ef9917] to-[#e2eb60] cursor-pointer hover:text-gray-700 transition-colors
+            className="relative my-4 lg:my-10 px-4 py-2 text-lg bg-black font-bold rounded-3xl hover:bg-linear-to-r from-[#ef9917] to-[#e2eb60] cursor-pointer hover:text-gray-700 transition-colors
           after:content-['']
           after:absolute 
           after:top-1/2 
