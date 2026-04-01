@@ -267,10 +267,12 @@ export default function Home() {
                 Prediksi Persentase Kejadian Gempa Mendatang
               </h3>
               <p className="text-sm font-light text-shadow-lg text-justify lg:text-justify">
-                Lorem ipsum dolor sit amet consectetur adipisicing elit. Sequi
-                cumque eligendi iste nemo dolores aperiam eveniet optio
-                obcaecati quibusdam dolorem. Lorem ipsum dolor sit amet
-                consectetur, adipisicing elit. Adipisci, voluptatum.
+                Model prediksi timeseries menganalisis pola historis gempa dari
+                waktu ke waktu untuk meramalkan kemungkinan terjadinya gempa di
+                masa depan. Dengan teknologi pembelajaran mesin yang canggih,
+                sistem dapat mengidentifikasi tren temporal dan pola musiman
+                untuk memberikan perkiraan tingkat kejadian gempa yang akurat
+                pada periode mendatang.
               </p>
             </div>
           </div>
@@ -350,8 +352,10 @@ export default function Home() {
               refresh analisis secara manual pada titik yang sama.
             </li>
             <li className="text-sm text-gray-600 mb-2">
-              Hasil analisis akan ditampilkan di bagian bawah halaman, termasuk
-              tingkat prediksi dampak gempa dan data historis terkait......
+              Hasil analisis timeseries akan ditampilkan di bagian bawah
+              halaman, termasuk grafik prediksi dengan perkiraan frekuensi gempa
+              per bulan, interval kepercayaan model, evaluasi performa, dan
+              visualisasi data historis yang digunakan.....
             </li>
             <li className="text-sm text-gray-600 mb-2">
               Gunakan informasi ini untuk meningkatkan kewaspadaan dan
