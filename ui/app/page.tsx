@@ -392,8 +392,8 @@ export default function Home() {
             </h1>
           </div>
         </div>
-        <div className="flex justify-center gap-5">
-          <div className="flex items-center gap-2">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-center sm:gap-4">
+          <div className="flex w-full flex-col gap-1 sm:w-auto sm:flex-row sm:items-center sm:gap-2">
             <label className="text-sm text-gray-700" htmlFor="radius-km">
               Radius (50-200 km)
             </label>
@@ -410,24 +410,25 @@ export default function Home() {
                   setRadiusKm(Math.max(50, Math.min(200, nextValue)));
                 }
               }}
-              className="w-24 rounded-md border border-gray-300 px-2 py-1 text-sm"
+              className="h-10 w-full rounded-md border border-gray-300 px-3 py-1 text-sm sm:w-24"
             />
           </div>
-          <button
-            className="isolate relative text-md rounded-2xl font-semibold
-          "
-            onClick={mulaiAnalisis}
-          >
-            <div className="bg-amber-400 z-10 py-2 px-4 rounded-[inherit]">
-              Mulai Analisis Lokasi
-            </div>
-          </button>
-          <button
-            className="border border-black text-md rounded-2xl py-2 px-4"
-            onClick={resetLocation}
-          >
-            Reset Lokasi
-          </button>
+          <div className="grid w-full grid-cols-2 gap-3 sm:w-auto sm:flex sm:gap-4">
+            <button
+              className="isolate relative rounded-2xl font-semibold w-full"
+              onClick={mulaiAnalisis}
+            >
+              <div className="bg-amber-400 z-10 rounded-[inherit] px-4 py-2.5 text-sm leading-tight sm:text-base">
+                Mulai Analisis Lokasi
+              </div>
+            </button>
+            <button
+              className="w-full rounded-2xl border border-black px-4 py-2.5 text-sm sm:text-base"
+              onClick={resetLocation}
+            >
+              Reset Lokasi
+            </button>
+          </div>
         </div>
       </div>
       {/* hasil */}
