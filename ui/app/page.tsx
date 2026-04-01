@@ -355,7 +355,7 @@ export default function Home() {
               Hasil analisis timeseries akan ditampilkan di bagian bawah
               halaman, termasuk grafik prediksi dengan perkiraan frekuensi gempa
               per bulan, interval kepercayaan model, evaluasi performa, dan
-              visualisasi data historis yang digunakan.....
+              visualisasi data historis yang digunakan.
             </li>
             <li className="text-sm text-gray-600 mb-2">
               Gunakan informasi ini untuk meningkatkan kewaspadaan dan
